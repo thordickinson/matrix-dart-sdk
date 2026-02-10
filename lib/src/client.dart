@@ -2378,6 +2378,7 @@ class Client extends MatrixApi {
       final responseTimeout =
           timeout == null ? null : timeout + const Duration(seconds: 10);
 
+      Logs().i('Syncing with response timeout: $responseTimeout');
       final syncResp = responseTimeout == null
           ? await syncRequest
           : await syncRequest.timeout(responseTimeout);

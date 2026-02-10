@@ -5202,8 +5202,9 @@ class Api {
         if (useStateAfter != null) 'use_state_after': useStateAfter.toString(),
       },
     );
+    
     final request = Request('GET', baseUri!.resolveUri(requestUri));
-    Logs().v('GET ${request.url}');
+    Logs().i('GET ${request.url}');
     request.headers['authorization'] = 'Bearer ${bearerToken!}';
     final response = await httpClient.send(request);
     final responseBody = await response.stream.toBytes();
