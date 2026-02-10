@@ -11,6 +11,7 @@ import 'package:matrix/matrix_api_lite/model/auth/authentication_identifier.dart
 import 'package:matrix/matrix_api_lite/model/matrix_event.dart';
 import 'package:matrix/matrix_api_lite/model/matrix_keys.dart';
 import 'package:matrix/matrix_api_lite/model/sync_update.dart';
+import 'package:matrix/matrix_api_lite/utils/logs.dart';
 
 // ignore_for_file: provide_deprecation_message
 
@@ -5202,6 +5203,7 @@ class Api {
       },
     );
     final request = Request('GET', baseUri!.resolveUri(requestUri));
+    Logs().v('GET ${request.url}');
     request.headers['authorization'] = 'Bearer ${bearerToken!}';
     final response = await httpClient.send(request);
     final responseBody = await response.stream.toBytes();
