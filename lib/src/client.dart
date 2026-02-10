@@ -2390,6 +2390,7 @@ class Client extends MatrixApi {
 
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.processing));
       if (syncResp == null) throw syncError ?? 'Unknown sync error';
+      final SyncUpdate syncUpdate = syncResp;
       if (_currentSyncId != syncRequest.hashCode) {
         Logs()
             .w('Current sync request ID has changed. Dropping this sync loop!');
@@ -2401,18 +2402,18 @@ class Client extends MatrixApi {
       await roomsLoading;
       await _accountDataLoading;
       _currentTransaction = database.transaction(() async {
-        await _handleSync(syncResp, direction: Direction.f);
-        if (prevBatch != syncResp.nextBatch) {
-          await database.storePrevBatch(syncResp.nextBatch);
+        await _handleSync(syncUpdate, direction: Direction.f);
+        if (prevBatch != syncUpdate.nextBatch) {
+          await database.storePrevBatch(syncUpdate.nextBatch);
         }
       });
       await runBenchmarked(
         'Process sync',
         () async => await _currentTransaction,
-        syncResp.itemCount,
+        syncUpdate.itemCount,
       );
       if (_disposed || _aborted) return;
-      _prevBatch = syncResp.nextBatch;
+      _prevBatch = syncUpdate.nextBatch;
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.cleaningUp));
       // ignore: unawaited_futures
       database.deleteOldFiles(
