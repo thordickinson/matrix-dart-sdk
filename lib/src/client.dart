@@ -2378,9 +2378,15 @@ class Client extends MatrixApi {
       final responseTimeout =
           timeout == null ? null : timeout + const Duration(seconds: 10);
 
-      final syncResp = responseTimeout == null
-          ? await syncRequest
-          : await syncRequest.timeout(responseTimeout);
+      SyncUpdate? syncResp;
+      try {
+        syncResp = responseTimeout == null
+            ? await syncRequest
+            : await syncRequest.timeout(responseTimeout);
+      } on TimeoutException {
+        Logs().w('Sync timeout');
+        return;
+      }
 
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.processing));
       if (syncResp == null) throw syncError ?? 'Unknown sync error';
