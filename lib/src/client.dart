@@ -2356,6 +2356,17 @@ class Client extends MatrixApi {
 
       await _checkSyncFilter();
 
+      final fullUrl = homeserver?.resolveUri(Uri(
+        path: '_matrix/client/v3/sync',
+        queryParameters: {
+          if (syncFilterId != null) 'filter': syncFilterId,
+          if (prevBatch != null) 'since': prevBatch,
+          if (syncPresence != null) 'set_presence': syncPresence!.name,
+          if (timeout != null) 'timeout': timeout!.inMilliseconds.toString(),
+        },
+      ));
+      Logs().i('Syncing: $fullUrl');
+
       final syncRequest = sync(
         filter: syncFilterId,
         since: prevBatch,
@@ -2384,7 +2395,16 @@ class Client extends MatrixApi {
             ? await syncRequest
             : await syncRequest.timeout(responseTimeout);
       } on TimeoutException {
-        Logs().w('Sync timeout');
+        final fullUrl = homeserver?.resolveUri(Uri(
+          path: '_matrix/client/v3/sync',
+          queryParameters: {
+            if (syncFilterId != null) 'filter': syncFilterId,
+            if (prevBatch != null) 'since': prevBatch,
+            if (syncPresence != null) 'set_presence': syncPresence!.name,
+            if (timeout != null) 'timeout': timeout!.inMilliseconds.toString(),
+          },
+        ));
+        Logs().w('Sync timeout for URL: $fullUrl');
         return;
       }
 
