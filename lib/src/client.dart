@@ -1806,7 +1806,7 @@ class Client extends MatrixApi {
     var room =
         getRoomById(roomId) ?? await database.getSingleRoom(this, roomId);
     if (room == null) {
-      await oneShotSync(timeout: timeoutForServerRequests)
+      await oneShotSync()
           .timeout(timeoutForServerRequests)
           .catchError((_) => null);
       room = getRoomById(roomId) ??
@@ -2348,24 +2348,13 @@ class Client extends MatrixApi {
       // The timeout we send to the server for the sync loop. It says to the
       // server that we want to receive an empty sync response after this
       // amount of time if nothing happens.
-      if (prevBatch != null) timeout ??= const Duration(seconds: 30);
+      if (prevBatch != null) timeout ??= const Duration(seconds: 10);
 
       await ensureNotSoftLoggedOut(
         timeout == null ? const Duration(minutes: 1) : (timeout * 2),
       );
 
       await _checkSyncFilter();
-
-      final fullUrl = homeserver?.resolveUri(Uri(
-        path: '_matrix/client/v3/sync',
-        queryParameters: {
-          if (syncFilterId != null) 'filter': syncFilterId,
-          if (prevBatch != null) 'since': prevBatch,
-          if (syncPresence != null) 'set_presence': syncPresence!.name,
-          if (timeout != null) 'timeout': timeout!.inMilliseconds.toString(),
-        },
-      ));
-      Logs().i('Syncing: $fullUrl');
 
       final syncRequest = sync(
         filter: syncFilterId,
@@ -2389,28 +2378,12 @@ class Client extends MatrixApi {
       final responseTimeout =
           timeout == null ? null : timeout + const Duration(seconds: 10);
 
-      SyncUpdate? syncResp;
-      try {
-        syncResp = responseTimeout == null
-            ? await syncRequest
-            : await syncRequest.timeout(responseTimeout);
-      } on TimeoutException {
-        final fullUrl = homeserver?.resolveUri(Uri(
-          path: '_matrix/client/v3/sync',
-          queryParameters: {
-            if (syncFilterId != null) 'filter': syncFilterId,
-            if (prevBatch != null) 'since': prevBatch,
-            if (syncPresence != null) 'set_presence': syncPresence!.name,
-            if (timeout != null) 'timeout': timeout!.inMilliseconds.toString(),
-          },
-        ));
-        Logs().w('Sync timeout for URL: $fullUrl');
-        return;
-      }
+      final syncResp = responseTimeout == null
+          ? await syncRequest
+          : await syncRequest.timeout(responseTimeout);
 
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.processing));
       if (syncResp == null) throw syncError ?? 'Unknown sync error';
-      final SyncUpdate syncUpdate = syncResp;
       if (_currentSyncId != syncRequest.hashCode) {
         Logs()
             .w('Current sync request ID has changed. Dropping this sync loop!');
@@ -2422,18 +2395,18 @@ class Client extends MatrixApi {
       await roomsLoading;
       await _accountDataLoading;
       _currentTransaction = database.transaction(() async {
-        await _handleSync(syncUpdate, direction: Direction.f);
-        if (prevBatch != syncUpdate.nextBatch) {
-          await database.storePrevBatch(syncUpdate.nextBatch);
+        await _handleSync(syncResp, direction: Direction.f);
+        if (prevBatch != syncResp.nextBatch) {
+          await database.storePrevBatch(syncResp.nextBatch);
         }
       });
       await runBenchmarked(
         'Process sync',
         () async => await _currentTransaction,
-        syncUpdate.itemCount,
+        syncResp.itemCount,
       );
       if (_disposed || _aborted) return;
-      _prevBatch = syncUpdate.nextBatch;
+      _prevBatch = syncResp.nextBatch;
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.cleaningUp));
       // ignore: unawaited_futures
       database.deleteOldFiles(
