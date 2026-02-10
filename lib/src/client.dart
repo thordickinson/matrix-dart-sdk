@@ -1806,7 +1806,7 @@ class Client extends MatrixApi {
     var room =
         getRoomById(roomId) ?? await database.getSingleRoom(this, roomId);
     if (room == null) {
-      await oneShotSync()
+      await oneShotSync(timeout: timeoutForServerRequests)
           .timeout(timeoutForServerRequests)
           .catchError((_) => null);
       room = getRoomById(roomId) ??
