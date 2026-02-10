@@ -2348,7 +2348,7 @@ class Client extends MatrixApi {
       // The timeout we send to the server for the sync loop. It says to the
       // server that we want to receive an empty sync response after this
       // amount of time if nothing happens.
-      if (prevBatch != null) timeout ??= const Duration(seconds: 10);
+      if (prevBatch != null) timeout ??= const Duration(seconds: 30);
 
       await ensureNotSoftLoggedOut(
         timeout == null ? const Duration(minutes: 1) : (timeout * 2),
@@ -2359,7 +2359,7 @@ class Client extends MatrixApi {
       final syncRequest = sync(
         filter: syncFilterId,
         since: prevBatch,
-        timeout: timeout?.inMilliseconds,
+        timeout: Duration(seconds: 10).inMilliseconds,
         setPresence: syncPresence,
       ).then((v) => Future<SyncUpdate?>.value(v)).catchError((e) {
         if (e is MatrixException) {
