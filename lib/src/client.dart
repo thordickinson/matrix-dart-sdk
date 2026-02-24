@@ -2332,9 +2332,37 @@ class Client extends MatrixApi {
     }
   }
 
+  Future<void> _debugConnectivity() async {
+    final connectivityLogs = Logs();
+    connectivityLogs.i('--- Debug Connectivity Start ---');
+    try {
+      final stopwatch = Stopwatch()..start();
+      final googleResp = await httpClient.get(Uri.parse('https://google.com')).timeout(const Duration(seconds: 10));
+      stopwatch.stop();
+      connectivityLogs.i('Ping google.com: Success (${googleResp.statusCode}) in ${stopwatch.elapsedMilliseconds}ms');
+    } catch (e) {
+      connectivityLogs.e('Ping google.com: Failed', e);
+    }
+
+    try {
+      if (homeserver != null) {
+        final stopwatch = Stopwatch()..start();
+        final hsResp = await httpClient.get(homeserver!.replace(path: '/_matrix/client/versions')).timeout(const Duration(seconds: 10));
+        stopwatch.stop();
+        connectivityLogs.i('Ping homeserver: Success (${hsResp.statusCode}) in ${stopwatch.elapsedMilliseconds}ms');
+      } else {
+        connectivityLogs.w('Ping homeserver: Skipped (homeserver is null)');
+      }
+    } catch (e) {
+      connectivityLogs.e('Ping homeserver: Failed', e);
+    }
+    connectivityLogs.i('--- Debug Connectivity End ---');
+  }
+
   /// Pass a timeout to set how long the server waits before sending an empty response.
   /// (Corresponds to the timeout param on the /sync request.)
   Future<void> _innerSync({Duration? timeout}) async {
+    await _debugConnectivity();
     await _retryDelay;
     _retryDelay = Future.delayed(Duration(seconds: syncErrorTimeoutSec));
     if (!isLogged() || _disposed || _aborted) return;
@@ -2382,6 +2410,7 @@ class Client extends MatrixApi {
       final syncResp = responseTimeout == null
           ? await syncRequest
           : await syncRequest.timeout(responseTimeout);
+      Logs().i('Sync request finished successfully');
 
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.processing));
       if (syncResp == null) throw syncError ?? 'Unknown sync error';
