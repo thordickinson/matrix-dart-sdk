@@ -2396,6 +2396,7 @@ class Client extends MatrixApi {
         timeout: Duration(seconds: 10).inMilliseconds,
         setPresence: syncPresence,
       ).then((v) => Future<SyncUpdate?>.value(v)).catchError((e) {
+        Logs().e('_innerSync: syncRequest.catchError', e);
         if (e is MatrixException) {
           syncError = e;
         } else {
@@ -2418,7 +2419,11 @@ class Client extends MatrixApi {
           ? await syncRequest
           : await syncRequest.timeout(responseTimeout);
       syncStopwatch.stop();
-      Logs().i('Sync request finished successfully in ${syncStopwatch.elapsedMilliseconds}ms');
+      if (syncResp != null) {
+        Logs().i('Sync request finished successfully in ${syncStopwatch.elapsedMilliseconds}ms');
+      } else {
+        Logs().e('Sync request FAILED in ${syncStopwatch.elapsedMilliseconds}ms');
+      }
 
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.processing));
       if (syncResp == null) {
@@ -2473,7 +2478,9 @@ class Client extends MatrixApi {
       // try to process the to_device queue
       try {
         await processToDeviceQueue();
-      } catch (_) {} // we want to dispose any errors this throws
+      } catch (e, s) {
+        Logs().e('_innerSync: Error in processToDeviceQueue', e, s);
+      } // we want to dispose any errors this throws
 
       _retryDelay = Future.value();
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.finished));
