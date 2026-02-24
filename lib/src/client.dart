@@ -2390,10 +2390,11 @@ class Client extends MatrixApi {
       await _checkSyncFilter();
 
       Logs().i('Requesting sync with filter: $syncFilterId, since: $prevBatch');
+      final syncTimeout = timeout ?? const Duration(seconds: 30);
       final syncRequest = sync(
         filter: syncFilterId,
         since: prevBatch,
-        timeout: Duration(seconds: 10).inMilliseconds,
+        timeout: syncTimeout.inMilliseconds,
         setPresence: syncPresence,
       ).then((v) => Future<SyncUpdate?>.value(v)).catchError((e) {
         Logs().e('_innerSync: syncRequest.catchError', e);
@@ -2411,7 +2412,7 @@ class Client extends MatrixApi {
       // timeout (for initial sync) we give the server a longer time to
       // responde.
       final responseTimeout =
-          timeout == null ? null : timeout + const Duration(seconds: 3000);
+          timeout == null ? null : timeout + const Duration(seconds: 15);
 
       Logs().i('Syncing with response timeout: $responseTimeout');
       final syncStopwatch = Stopwatch()..start();
