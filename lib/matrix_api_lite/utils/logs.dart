@@ -117,6 +117,8 @@ class Logs {
           level: Level.verbose,
         ),
       );
+
+  void clear() => outputEvents.clear();
 }
 
 // ignore: avoid_print
