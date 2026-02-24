@@ -2430,8 +2430,8 @@ class Client extends MatrixApi {
       if (syncResp.rooms != null) {
         Logs().i('_innerSync: Room updates - Join: ${syncResp.rooms?.join?.length ?? 0}, Invite: ${syncResp.rooms?.invite?.length ?? 0}, Leave: ${syncResp.rooms?.leave?.length ?? 0}');
       }
-      if (syncResp.toDevice?.events != null) {
-        Logs().i('_innerSync: ToDevice events: ${syncResp.toDevice?.events?.length ?? 0}');
+      if (syncResp.toDevice != null) {
+        Logs().i('_innerSync: ToDevice events: ${syncResp.toDevice?.length ?? 0}');
       }
 
       if (_currentSyncId != syncRequest.hashCode) {
