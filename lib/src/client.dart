@@ -2437,6 +2437,9 @@ class Client extends MatrixApi {
       }
       if (syncResp.toDevice != null) {
         Logs().i('_innerSync: ToDevice events: ${syncResp.toDevice?.length ?? 0}');
+        for (final event in syncResp.toDevice!) {
+          Logs().i('_innerSync: Received ToDevice event of type: ${event.type}');
+        }
       }
 
       if (_currentSyncId != syncRequest.hashCode) {
@@ -2517,7 +2520,12 @@ class Client extends MatrixApi {
         Logs().i('_innerSync early return in final catch: isLogged=${isLogged()}, disposed=$_disposed, aborted=$_aborted');
         return;
       }
-      Logs().e('_innerSync: Caught unexpected error', e, s);
+      final errorStr = e.toString();
+      if (errorStr.contains('Bad file descriptor')) {
+        Logs().e('_innerSync: Detected dead socket (Bad file descriptor). Failing sync loop to allow fresh connection.', e, s);
+      } else {
+        Logs().e('_innerSync: Caught unexpected error', e, s);
+      }
       onSyncStatus.add(
         SyncStatusUpdate(
           SyncStatus.error,
