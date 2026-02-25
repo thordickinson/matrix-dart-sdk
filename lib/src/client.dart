@@ -2363,7 +2363,7 @@ class Client extends MatrixApi {
   /// Pass a timeout to set how long the server waits before sending an empty response.
   /// (Corresponds to the timeout param on the /sync request.)
   Future<void> _innerSync({Duration? timeout}) async {
-    Client.onDebugNotification?.call('Sync Debug', 'Sync cycle started...');
+    // Client.onDebugNotification?.call('Sync Debug', 'Sync cycle started...');
     Logs().i('_innerSync started with timeout: $timeout');
     await _debugConnectivity();
     await _retryDelay;
@@ -2426,7 +2426,7 @@ class Client extends MatrixApi {
           : await syncRequest.timeout(responseTimeout);
       syncStopwatch.stop();
       if (syncResp != null) {
-        Client.onDebugNotification?.call('Sync Debug', 'Success: ${syncResp.itemCount} items');
+        // Client.onDebugNotification?.call('Sync Debug', 'Success: ${syncResp.itemCount} items');
         Logs().i('Sync request finished successfully in ${syncStopwatch.elapsedMilliseconds}ms');
       } else {
         Logs().e('Sync request FAILED in ${syncStopwatch.elapsedMilliseconds}ms');
