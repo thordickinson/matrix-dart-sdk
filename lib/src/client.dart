@@ -2398,6 +2398,9 @@ class Client extends MatrixApi {
         setPresence: syncPresence,
       ).then((v) => Future<SyncUpdate?>.value(v)).catchError((e) {
         Logs().e('_innerSync: syncRequest.catchError', e);
+        if (e.toString().contains('Bad file descriptor')) {
+          throw e; // Fail fast!
+        }
         if (e is MatrixException) {
           syncError = e;
         } else {
