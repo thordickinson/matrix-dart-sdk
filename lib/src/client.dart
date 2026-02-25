@@ -58,6 +58,7 @@ extension TrailingSlash on Uri {
 /// [Matrix](https://matrix.org) homeserver and is the entry point for this
 /// SDK.
 class Client extends MatrixApi {
+  static void Function(String title, String body)? onDebugNotification;
   int? _id;
 
   // Keeps track of the currently ongoing syncRequest
@@ -2362,6 +2363,7 @@ class Client extends MatrixApi {
   /// Pass a timeout to set how long the server waits before sending an empty response.
   /// (Corresponds to the timeout param on the /sync request.)
   Future<void> _innerSync({Duration? timeout}) async {
+    Client.onDebugNotification?.call('Sync Debug', 'Sync cycle started...');
     Logs().i('_innerSync started with timeout: $timeout');
     await _debugConnectivity();
     await _retryDelay;
@@ -2424,6 +2426,7 @@ class Client extends MatrixApi {
           : await syncRequest.timeout(responseTimeout);
       syncStopwatch.stop();
       if (syncResp != null) {
+        Client.onDebugNotification?.call('Sync Debug', 'Success: ${syncResp.itemCount} items');
         Logs().i('Sync request finished successfully in ${syncStopwatch.elapsedMilliseconds}ms');
       } else {
         Logs().e('Sync request FAILED in ${syncStopwatch.elapsedMilliseconds}ms');
@@ -2512,6 +2515,7 @@ class Client extends MatrixApi {
         }
       }
     } on SyncConnectionException catch (e, s) {
+      Client.onDebugNotification?.call('Sync Debug', 'Connection Error: ${e.message}');
       Logs().e('_innerSync: Caught SyncConnectionException', e, s);
       onSyncStatus.add(
         SyncStatusUpdate(
@@ -2525,6 +2529,7 @@ class Client extends MatrixApi {
         return;
       }
       final errorStr = e.toString();
+      Client.onDebugNotification?.call('Sync Debug', 'CRASH: ${errorStr.split('\n').first}');
       if (errorStr.contains('Bad file descriptor')) {
         Logs().e('_innerSync: Detected dead socket (Bad file descriptor). Failing sync loop to allow fresh connection.', e, s);
       } else {
