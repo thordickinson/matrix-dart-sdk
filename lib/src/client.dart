@@ -2415,7 +2415,7 @@ class Client extends MatrixApi {
       // timeout (for initial sync) we give the server a longer time to
       // responde.
       final responseTimeout =
-          timeout == null ? null : timeout + const Duration(seconds: 15);
+          timeout == null ? null : timeout + const Duration(seconds: 3000);
 
       Logs().i('Syncing with response timeout: $responseTimeout');
       final syncStopwatch = Stopwatch()..start();
