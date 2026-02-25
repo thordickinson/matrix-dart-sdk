@@ -2515,7 +2515,7 @@ class Client extends MatrixApi {
         }
       }
     } on SyncConnectionException catch (e, s) {
-      Client.onDebugNotification?.call('Sync Debug', 'Connection Error: ${e.message}');
+      Client.onDebugNotification?.call('Sync Debug', 'Connection Error: ${e.originalException}');
       Logs().e('_innerSync: Caught SyncConnectionException', e, s);
       onSyncStatus.add(
         SyncStatusUpdate(
