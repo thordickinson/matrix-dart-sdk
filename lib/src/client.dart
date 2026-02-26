@@ -58,7 +58,7 @@ extension TrailingSlash on Uri {
 /// [Matrix](https://matrix.org) homeserver and is the entry point for this
 /// SDK.
 class Client extends MatrixApi {
-  static void Function(String title, String body)? onDebugNotification;
+  static void Function(Object error)? onSyncError;
   int? _id;
 
   // Keeps track of the currently ongoing syncRequest
@@ -2333,48 +2333,21 @@ class Client extends MatrixApi {
     }
   }
 
-  Future<void> _debugConnectivity() async {
-    final connectivityLogs = Logs();
-    connectivityLogs.i('--- Debug Connectivity Start ---');
-    try {
-      final stopwatch = Stopwatch()..start();
-      final googleResp = await httpClient.get(Uri.parse('https://google.com')).timeout(const Duration(seconds: 10));
-      stopwatch.stop();
-      connectivityLogs.i('Ping google.com: Success (${googleResp.statusCode}) in ${stopwatch.elapsedMilliseconds}ms');
-    } catch (e) {
-      connectivityLogs.e('Ping google.com: Failed', e);
-    }
-
-    try {
-      if (homeserver != null) {
-        final stopwatch = Stopwatch()..start();
-        final hsResp = await httpClient.get(homeserver!.replace(path: '/_matrix/client/versions')).timeout(const Duration(seconds: 10));
-        stopwatch.stop();
-        connectivityLogs.i('Ping homeserver: Success (${hsResp.statusCode}) in ${stopwatch.elapsedMilliseconds}ms');
-      } else {
-        connectivityLogs.w('Ping homeserver: Skipped (homeserver is null)');
-      }
-    } catch (e) {
-      connectivityLogs.e('Ping homeserver: Failed', e);
-    }
-    connectivityLogs.i('--- Debug Connectivity End ---');
-  }
 
   /// Pass a timeout to set how long the server waits before sending an empty response.
   /// (Corresponds to the timeout param on the /sync request.)
   Future<void> _innerSync({Duration? timeout}) async {
-    // Client.onDebugNotification?.call('Sync Debug', 'Sync cycle started...');
-    Logs().i('_innerSync started with timeout: $timeout');
-    await _debugConnectivity();
+    // Sync cycle start notification removed per user request
+    Logs().v('_innerSync started with timeout: $timeout');
     await _retryDelay;
     _retryDelay = Future.delayed(Duration(seconds: syncErrorTimeoutSec));
     if (!isLogged() || _disposed || _aborted) {
-      Logs().i('_innerSync early return: isLogged=${isLogged()}, disposed=$_disposed, aborted=$_aborted');
+      Logs().v('_innerSync early return: isLogged=${isLogged()}, disposed=$_disposed, aborted=$_aborted');
       return;
     }
     try {
       if (_initLock) {
-        Logs().i('_innerSync early return: _initLock=true');
+        Logs().v('_innerSync early return: _initLock=true');
         return;
       }
       Object? syncError;
@@ -2387,11 +2360,11 @@ class Client extends MatrixApi {
       await ensureNotSoftLoggedOut(
         timeout == null ? const Duration(minutes: 1) : (timeout * 2),
       );
-      Logs().i('_innerSync: ensureNotSoftLoggedOut completed');
+      Logs().v('_innerSync: ensureNotSoftLoggedOut completed');
 
       await _checkSyncFilter();
 
-      Logs().i('Requesting sync with filter: $syncFilterId, since: $prevBatch');
+      Logs().v('Requesting sync with filter: $syncFilterId, since: $prevBatch');
       final syncTimeout = timeout ?? const Duration(seconds: 30);
       final syncRequest = sync(
         filter: syncFilterId,
@@ -2400,9 +2373,8 @@ class Client extends MatrixApi {
         setPresence: syncPresence,
       ).then((v) => Future<SyncUpdate?>.value(v)).catchError((e) {
         Logs().e('_innerSync: syncRequest.catchError', e);
-        if (e.toString().contains('Bad file descriptor')) {
+          Client.onSyncError?.call(e);
           throw e; // Fail fast!
-        }
         if (e is MatrixException) {
           syncError = e;
         } else {
@@ -2419,15 +2391,15 @@ class Client extends MatrixApi {
       final responseTimeout =
           timeout == null ? null : timeout + const Duration(seconds: 3000);
 
-      Logs().i('Syncing with response timeout: $responseTimeout');
+      Logs().v('Syncing with response timeout: $responseTimeout');
       final syncStopwatch = Stopwatch()..start();
       final syncResp = responseTimeout == null
           ? await syncRequest
           : await syncRequest.timeout(responseTimeout);
       syncStopwatch.stop();
       if (syncResp != null) {
-        // Client.onDebugNotification?.call('Sync Debug', 'Success: ${syncResp.itemCount} items');
-        Logs().i('Sync request finished successfully in ${syncStopwatch.elapsedMilliseconds}ms');
+        // Sync success notification removed per user request
+        Logs().v('Sync request finished successfully in ${syncStopwatch.elapsedMilliseconds}ms');
       } else {
         Logs().e('Sync request FAILED in ${syncStopwatch.elapsedMilliseconds}ms');
       }
@@ -2438,14 +2410,14 @@ class Client extends MatrixApi {
         throw syncError ?? 'Unknown sync error';
       }
 
-      Logs().i('_innerSync: Received syncResp. nextBatch=${syncResp.nextBatch}, itemCount=${syncResp.itemCount}');
+      Logs().v('_innerSync: Received syncResp. nextBatch=${syncResp.nextBatch}, itemCount=${syncResp.itemCount}');
       if (syncResp.rooms != null) {
-        Logs().i('_innerSync: Room updates - Join: ${syncResp.rooms?.join?.length ?? 0}, Invite: ${syncResp.rooms?.invite?.length ?? 0}, Leave: ${syncResp.rooms?.leave?.length ?? 0}');
+        Logs().v('_innerSync: Room updates - Join: ${syncResp.rooms?.join?.length ?? 0}, Invite: ${syncResp.rooms?.invite?.length ?? 0}, Leave: ${syncResp.rooms?.leave?.length ?? 0}');
       }
       if (syncResp.toDevice != null) {
         Logs().i('_innerSync: ToDevice events: ${syncResp.toDevice?.length ?? 0}');
         for (final event in syncResp.toDevice!) {
-          Logs().i('_innerSync: Received ToDevice event of type: ${event.type}');
+          Logs().v('_innerSync: Received ToDevice event of type: ${event.type}');
         }
       }
 
@@ -2469,9 +2441,9 @@ class Client extends MatrixApi {
         () async => await _currentTransaction,
         syncResp.itemCount,
       );
-      Logs().i('_innerSync: Process sync (database transaction) completed');
+      Logs().v('_innerSync: Process sync (database transaction) completed');
       if (_disposed || _aborted) {
-        Logs().i('_innerSync early return after process sync: disposed=$_disposed, aborted=$_aborted');
+        Logs().v('_innerSync early return after process sync: disposed=$_disposed, aborted=$_aborted');
         return;
       }
       _prevBatch = syncResp.nextBatch;
@@ -2494,7 +2466,7 @@ class Client extends MatrixApi {
 
       _retryDelay = Future.value();
       onSyncStatus.add(SyncStatusUpdate(SyncStatus.finished));
-      Logs().i('_innerSync: Completed successfully');
+      Logs().v('_innerSync: Completed successfully');
     } on MatrixException catch (e, s) {
       Logs().e('_innerSync: Caught MatrixException', e, s);
       onSyncStatus.add(
@@ -2515,7 +2487,7 @@ class Client extends MatrixApi {
         }
       }
     } on SyncConnectionException catch (e, s) {
-      Client.onDebugNotification?.call('Sync Debug', 'Connection Error: ${e.originalException}');
+      Client.onSyncError?.call(e);
       Logs().e('_innerSync: Caught SyncConnectionException', e, s);
       onSyncStatus.add(
         SyncStatusUpdate(
@@ -2529,7 +2501,7 @@ class Client extends MatrixApi {
         return;
       }
       final errorStr = e.toString();
-      Client.onDebugNotification?.call('Sync Debug', 'CRASH: ${errorStr.split('\n').first}');
+      Client.onSyncError?.call(e);
       if (errorStr.contains('Bad file descriptor')) {
         Logs().e('_innerSync: Detected dead socket (Bad file descriptor). Failing sync loop to allow fresh connection.', e, s);
       } else {
