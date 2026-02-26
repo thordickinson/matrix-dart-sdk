@@ -58,6 +58,7 @@ extension TrailingSlash on Uri {
 /// [Matrix](https://matrix.org) homeserver and is the entry point for this
 /// SDK.
 class Client extends MatrixApi {
+  static void Function(Object error)? onSyncError;
   int? _id;
 
   // Keeps track of the currently ongoing syncRequest
@@ -2362,6 +2363,10 @@ class Client extends MatrixApi {
         timeout: timeout?.inMilliseconds,
         setPresence: syncPresence,
       ).then((v) => Future<SyncUpdate?>.value(v)).catchError((e) {
+        if (e.toString().contains('Bad file descriptor')) {
+          Client.onSyncError?.call(e);
+          throw e; // Fail fast!
+        }
         if (e is MatrixException) {
           syncError = e;
         } else {
@@ -2376,7 +2381,7 @@ class Client extends MatrixApi {
       // timeout (for initial sync) we give the server a longer time to
       // responde.
       final responseTimeout =
-          timeout == null ? null : timeout + const Duration(seconds: 10);
+          timeout == null ? null : timeout + const Duration(seconds: 60);
 
       final syncResp = responseTimeout == null
           ? await syncRequest
@@ -2452,6 +2457,7 @@ class Client extends MatrixApi {
       );
     } catch (e, s) {
       if (!isLogged() || _disposed || _aborted) return;
+      Client.onSyncError?.call(e);
       Logs().e('Error during processing events', e, s);
       onSyncStatus.add(
         SyncStatusUpdate(
